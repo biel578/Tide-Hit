@@ -1,0 +1,10 @@
+#include "cli-lib/cli.h"
+#include <stdio.h>
+#include <unistd.h>
+
+int main() {
+    printf("Iniciando o jogo Tide Hit...\n");
+    sleep(1);
+    printf("Pronto para jogar!\n");
+    return 0;
+}
