@@ -2,6 +2,9 @@
 #include <string.h>
 #include "game.h"
 
+#include "screen.h"
+#include <stdio.h>
+
 EstadoJogo* criarEstadoInicial(int largura, int altura) {
 
     EstadoJogo* e = malloc(sizeof(EstadoJogo));
@@ -29,9 +32,9 @@ EstadoJogo* criarEstadoInicial(int largura, int altura) {
     return e;
 }
 
-void liberarEstado(EstadoJogo* e){
+void liberarEstado(EstadoJogo* estado){
 // esses voids eu vou atualzando dps
-    free(e);
+    free(estado);
 }
 
 void atualizarJogador(EstadoJogo* e, int tecla){
@@ -46,7 +49,26 @@ void verificarColisoes(EstadoJogo* e){
 
 }
 
-void desenharTudo(EstadoJogo* e){
+void desenharTudo(EstadoJogo* estado){
+
+    int x_meio = estado->telaLargura/ 2;
+    int y_meio = estado->telaAltura / 2;
+
+    screenSetColor(YELLOW, BLACK);
+
+
+    screenGotoxy(x_meio - 10,y_meio - 2);
+    printf("====================");
+
+    screenGotoxy(x_meio - 5, y_meio);
+    printf("TIDE HIT!");
+
+    screenGotoxy(x_meio - 10, y_meio + 2);
+    printf("====================");
+    screenSetColor(WHITE, BLACK);
+
+    screenGotoxy(x_meio - 12, y_meio + 5);
+    printf("Pressione 'q' para sair");
 }
 
 void carregarNivel(EstadoJogo* e, int nivel){
