@@ -2,13 +2,11 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-
 #include "screen.h"
 #include "keyboard.h"
 #include "timer.h"
 
 #include "game.h"
-
 
 #define TELA_LARGURA 80
 #define TELA_ALTURA 24
@@ -27,23 +25,22 @@ int main() {
 
     timerInit(estado->timerSpeed);
 
-    screenClear();
-    desenharTudo(estado);
-    screenUpdate();
-    sleep(2);
-
-
     int ch = 0;
 
-   while(ch!= 'q'){
+    while (ch != 'q' && estado->deveSair == 0) {
 
-        if(keyhit()) {
-            ch= readch();
-            
-        
-        atualizarJogador(estado, ch);
-   }
-        if(timerTimeOver() ==1){
+        if (keyhit()) {
+            ch = readch();
+
+            if (ch == 'q') {
+                break;
+            }
+
+            atualizarJogador(estado, ch);
+        }
+
+        if (timerTimeOver() == 1) {
+
         }
 
         screenClear();
@@ -53,7 +50,6 @@ int main() {
 
     keyboardDestroy();
     screenDestroy();
-
 
     liberarEstado(estado);
 
