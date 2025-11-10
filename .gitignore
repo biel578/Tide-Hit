@@ -5,3 +5,4 @@ tidehit
 cli-lib/src/*.o
 
 *.save
+raylib/
