@@ -71,6 +71,10 @@ typedef struct {
     int perfilSelecionado;
     int deveSair;
 
+    // --- NOVAS Variáveis (Dia 5) ---
+    char registroIniciais[4];
+    int registroCursor;
+
 } EstadoJogo;
 
 EstadoJogo* criarEstadoInicial(int largura, int altura);
