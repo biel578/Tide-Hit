@@ -9,7 +9,6 @@ EstadoJogo* criarEstadoInicial(int largura, int altura) {
 
     EstadoJogo* e = malloc(sizeof(EstadoJogo));
     if (!e) return NULL;
-//esse "e" é o estado
 
     e->telaLargura = largura;
     e->telaAltura = altura;
@@ -128,38 +127,36 @@ void atualizarJogador(EstadoJogo* e, int tecla) {
             }
         }
     }
-
     else if (e->telaAtual == TELA_REGISTRAR_PERFIL) {
 
         if (tecla == 13 || tecla == 10) {
-
             if (e->registroCursor == 3) {
-
-                e->telaAtual = TELA_MENU_PRINCIPAL;
+                
+                if (e->numPerfis < 10) {
+                    strcpy(e->perfis[e->numPerfis].iniciais, e->registroIniciais);
+                    e->perfis[e->numPerfis].recorde = 0;
+                    e->perfilSelecionado = e->numPerfis;
+                    e->numPerfis++;
+                } else {
+                    e->perfilSelecionado = 9;
+                }
+                e->telaAtual = TELA_JOGO;
             }
-
         } else if (tecla == 8) { 
-
             if (e->registroCursor > 0) { 
                 e->registroCursor--;
                 e->registroIniciais[e->registroCursor] = '_'; 
             }
-
         } else if ( (tecla >= 'a' && tecla <= 'z') || (tecla >= 'A' && tecla <= 'Z') ) {
-
             if (e->registroCursor < 3) {
-
                 if (tecla >= 'a' && tecla <= 'z') {
                     tecla = tecla - 32;
                 }
-
                 e->registroIniciais[e->registroCursor] = (char)tecla;
-                
                 e->registroCursor++; 
-        }
+            }
         }
     }
-
 }
 
 void atualizarBola(EstadoJogo* e) {
@@ -176,7 +173,7 @@ void desenharTudo(EstadoJogo* e) {
         int x_meio = e->telaLargura / 2;
         int y_meio = e->telaAltura / 2;
 
-        screenSetColor(YELLOW, BLACK);
+        screenSetColor(MAGENTA, BLACK);
         screenGotoxy(x_meio - 5, y_meio - 4);
         printf("TIDE HIT!");
         screenSetColor(WHITE, BLACK);
@@ -194,7 +191,7 @@ void desenharTudo(EstadoJogo* e) {
         printf("Use 'w' e 's' para mover");
 
     }
-    else if(e->telaAtual == TELA_JOGO) {
+    else if (e->telaAtual == TELA_JOGO) {
 
         screenSetColor(WHITE, BLACK);
         screenGotoxy(e->jogador.pos.x, e->jogador.pos.y);
@@ -214,7 +211,7 @@ void desenharTudo(EstadoJogo* e) {
         printf("VIDAS: %d", e->vidas);
 
     }
-    else if(e->telaAtual == TELA_TOP_SCORES) {
+    else if (e->telaAtual == TELA_TOP_SCORES) {
 
         int x_meio = e->telaLargura / 2;
         int y_meio = e->telaAltura / 2;
@@ -260,8 +257,8 @@ void desenharTudo(EstadoJogo* e) {
         screenSetColor(YELLOW, BLACK);
         screenGotoxy(x_meio - 2, y_meio);
         printf("%c %c %c", e->registroIniciais[0], 
-        e->registroIniciais[1], 
-        e->registroIniciais[2]);
+                             e->registroIniciais[1], 
+                             e->registroIniciais[2]);
 
         screenSetColor(WHITE, BLACK);
         screenGotoxy(x_meio - 2 + (e->registroCursor * 2), y_meio + 1);
