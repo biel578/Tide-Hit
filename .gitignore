@@ -1,8 +1,7 @@
-# aba pra colocar o executavel, arquivos objeto e o backup do nano
-tidehit
-
-*.o
-cli-lib/src/*.o
-
-*.save
 raylib/
+*.dat
+*.save
+*.o
+*:Zone.Identifier
+tidehit
+tidehit.exe

@@ -4,7 +4,27 @@
 #include "game.h"
 #include <stdio.h> 
 
+#define SCORE_FILE "scores.dat"
+
 void desenharTelaJogo(EstadoJogo* e);
+
+void initGame(EstadoJogo* e) {
+    e->timerSpeed = 50;
+    e->pontuacao = 0;
+    e->vidas = 3;
+    e->nivel = 1;
+    
+    e->jogador.pos.x = e->telaLargura / 2 - (e->jogador.largura / 2);
+    e->jogador.pos.y = e->telaAltura - 60;
+    e->bola.pos.x = e->telaLargura / 2;
+    e->bola.pos.y = e->telaAltura - 70;
+    e->bola.vel.dx = 1;
+    e->bola.vel.dy = -1;
+    
+    e->mostrarDicaControle = true;
+    e->timerDicaControle = 3.0f;
+    e->cursorPause = 0;
+}
 
 EstadoJogo* criarEstadoInicial(int largura, int altura) {
 
@@ -13,35 +33,25 @@ EstadoJogo* criarEstadoInicial(int largura, int altura) {
 
     e->telaLargura = largura;
     e->telaAltura = altura;
-    e->timerSpeed = 50;
-    e->listaDeBlocos = NULL;
-    e->pontuacao = 0;
-    e->vidas = 3;
-    e->nivel = 1;
-    e->telaAtual = TELA_MENU_PRINCIPAL;
+    e->jogador.largura = 100;
+    e->jogador.simbolo = "=======";
+    e->bola.simbolo = 'O';
+    e->deveSair = 0;
     e->cursorMenu = 0;
+    e->listaDeBlocos = NULL;
+    
+    e->telaAtual = TELA_MENU_PRINCIPAL;
     e->numPerfis = 0;
     e->perfilSelecionado = -1;
-    e->deveSair = 0;
-    e->registroCursor = 0;
-    strcpy(e->registroIniciais, "___");
-    e->jogador.largura = 100;
-    e->jogador.pos.x = largura / 2 - (e->jogador.largura / 2);
-    e->jogador.pos.y = altura - 60;
-    e->jogador.simbolo = "=======";
-    e->bola.pos.x = largura / 2;
-    e->bola.pos.y = altura - 70;
-    e->bola.vel.dx = 1;
-    e->bola.vel.dy = -1;
-    e->bola.simbolo = 'O';
-    e->mostrarDicaControle = false;
-    e->timerDicaControle = 0.0f;
-    e->cursorPause = 0;
+    
+    carregarTopScores(e);
+    initGame(e);
 
     return e;
 }
 
 void liberarEstado(EstadoJogo* estado) {
+    salvarTopScores(estado);
     free(estado);
 }
 
@@ -61,7 +71,6 @@ void atualizarJogador(EstadoJogo* e) {
                 e->telaAtual = TELA_PERGUNTA_PERFIL;
                 e->cursorMenu = 0;
             } else if (e->cursorMenu == 1) {
-                carregarTopScores(e);
                 e->telaAtual = TELA_TOP_SCORES;
             } else if (e->cursorMenu == 2) {
                 e->deveSair = 1;
@@ -106,7 +115,9 @@ void atualizarJogador(EstadoJogo* e) {
             if (e->cursorPause == 0) {
                 e->telaAtual = TELA_JOGO;
             } else if (e->cursorPause == 1) {
+                salvarTopScores(e);
                 e->telaAtual = TELA_MENU_PRINCIPAL;
+                initGame(e);
             }
         }
     }
@@ -130,7 +141,8 @@ void atualizarJogador(EstadoJogo* e) {
         }
         if (IsKeyPressed(KEY_ENTER)) {
             if (e->cursorMenu == 0) {
-                e->telaAtual = TELA_MENU_PRINCIPAL;
+                e->telaAtual = TELA_SELECIONAR_PERFIL;
+                e->cursorMenu = 0; 
             } else if (e->cursorMenu == 1) { 
                 e->telaAtual = TELA_REGISTRAR_PERFIL; 
                 e->registroCursor = 0;
@@ -162,18 +174,38 @@ void atualizarJogador(EstadoJogo* e) {
 
         if (IsKeyPressed(KEY_ENTER)) {
             if (e->registroCursor == 3) {
-                if (e->numPerfis < 10) {
+                if (e->numPerfis < MAX_PERFIS) {
                     strcpy(e->perfis[e->numPerfis].iniciais, e->registroIniciais);
                     e->perfis[e->numPerfis].recorde = 0;
                     e->perfilSelecionado = e->numPerfis;
                     e->numPerfis++;
                 } else {
-                    e->perfilSelecionado = 9;
+                    e->perfilSelecionado = 0;
                 }
+                
+                initGame(e);
                 e->telaAtual = TELA_JOGO;
-                e->mostrarDicaControle = true;
-                e->timerDicaControle = 3.0f;
+                
             }
+        }
+    }
+    else if (e->telaAtual == TELA_SELECIONAR_PERFIL) {
+        if (IsKeyPressed(KEY_Q)) {
+            e->telaAtual = TELA_PERGUNTA_PERFIL;
+        }
+
+        if (IsKeyPressed(KEY_S) || IsKeyPressed(KEY_DOWN)) {
+            e->cursorMenu++;
+            if (e->cursorMenu >= e->numPerfis) e->cursorMenu = 0;
+        }
+        if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP)) {
+            e->cursorMenu--;
+            if (e->cursorMenu < 0) e->cursorMenu = e->numPerfis - 1;
+        }
+        if (IsKeyPressed(KEY_ENTER)) {
+            e->perfilSelecionado = e->cursorMenu;
+            initGame(e);
+            e->telaAtual = TELA_JOGO;
         }
     }
 }
@@ -184,7 +216,7 @@ void verificarColisoes(EstadoJogo* e) { }
 void desenharTelaJogo(EstadoJogo* e) {
     int recordeAtual = 0;
     char iniciaisJogador[4] = "???";
-    if (e->perfilSelecionado != -1) {
+    if (e->perfilSelecionado != -1 && e->perfilSelecionado < e->numPerfis) {
         recordeAtual = e->perfis[e->perfilSelecionado].recorde;
         strcpy(iniciaisJogador, e->perfis[e->perfilSelecionado].iniciais);
     }
@@ -225,9 +257,8 @@ void desenharTudo(EstadoJogo* e, Texture2D logo) {
     }
     else if (e->telaAtual == TELA_PAUSE) {
         desenharTelaJogo(e);
-
+        
         DrawRectangle(0, 0, e->telaLargura, e->telaAltura, ColorAlpha(BLACK, 0.7f));
-
         int x_meio = e->telaLargura / 2;
         int y_meio = e->telaAltura / 2;
         
@@ -268,17 +299,55 @@ void desenharTudo(EstadoJogo* e, Texture2D logo) {
         DrawText("Aperte ENTER para confirmar (depois das 3)", x_meio - MeasureText("Aperte ENTER para confirmar (depois das 3)", 20)/2, y_meio + 130, 20, GRAY);
         DrawText("Pressione Q para voltar", x_meio - MeasureText("Pressione Q para voltar", 20)/2, y_meio + 160, 20, GRAY);
     }
+    else if (e->telaAtual == TELA_SELECIONAR_PERFIL) {
+        int x_meio = e->telaLargura / 2;
+        int y_meio = e->telaAltura / 2;
+        DrawText("SELECIONE SEU PERFIL", x_meio - MeasureText("SELECIONE SEU PERFIL", 40)/2, y_meio - 100, 40, YELLOW);
+        
+        char textoPerfil[32];
+        int numOpcoes = e->numPerfis;
+        
+        for (int i = 0; i < numOpcoes; i++) {
+            Color cor = (e->cursorMenu == i) ? YELLOW : WHITE;
+            sprintf(textoPerfil, "%s %s (Recorde: %d)", (e->cursorMenu == i) ? ">" : " ", e->perfis[i].iniciais, e->perfis[i].recorde);
+            DrawText(textoPerfil, x_meio - MeasureText(textoPerfil, 25)/2, y_meio - 30 + (i*35), 25, cor);
+        }
+        
+        DrawText("Pressione ENTER para selecionar", x_meio - MeasureText("Pressione ENTER para selecionar", 20)/2, y_meio + (numOpcoes * 35) + 30, 20, GRAY);
+        DrawText("Pressione Q para voltar", x_meio - MeasureText("Pressione Q para voltar", 20)/2, y_meio + (numOpcoes * 35) + 60, 20, GRAY);
+    }
 }
 
 void carregarNivel(EstadoJogo* e, int nivel) {
 }
 
 void carregarTopScores(EstadoJogo* e) {
-    strcpy(e->perfis[0].iniciais, "FEL");
-    e->perfis[0].recorde = 1000;
-    strcpy(e->perfis[1].iniciais, "NAT");
-    e->perfis[1].recorde = 500;
-    e->numPerfis = 2;
+    FILE *f = fopen(SCORE_FILE, "rb");
+    if (f == NULL) {
+        e->numPerfis = 0;
+        return;
+    }
+
+    if (fread(&(e->numPerfis), sizeof(int), 1, f) != 1) {
+        e->numPerfis = 0;
+    } else {
+        if (e->numPerfis > MAX_PERFIS) {
+            e->numPerfis = MAX_PERFIS;
+        }
+        fread(e->perfis, sizeof(Perfil), e->numPerfis, f);
+    }
+    
+    fclose(f);
 }
+
 void salvarTopScores(EstadoJogo* e) {
+    FILE *f = fopen(SCORE_FILE, "wb");
+    if (f == NULL) {
+        return;
+    }
+
+    fwrite(&(e->numPerfis), sizeof(int), 1, f);
+    fwrite(e->perfis, sizeof(Perfil), e->numPerfis, f);
+    
+    fclose(f);
 }

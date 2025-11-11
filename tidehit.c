@@ -19,15 +19,18 @@ int main(void)
     while (!WindowShouldClose() && estado->deveSair == 0) 
     {
         atualizarJogador(estado);
+        if (estado->telaAtual == TELA_JOGO) {
+            atualizarBola(estado);
+            verificarColisoes(estado);
+        }
         
         BeginDrawing();
             ClearBackground(BLACK); 
-            
             desenharTudo(estado, logo);
-
         EndDrawing();
     }
 
+    salvarTopScores(estado);
     UnloadTexture(logo); 
     liberarEstado(estado); 
     CloseWindow();       
