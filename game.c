@@ -16,7 +16,63 @@ void limparBlocos(EstadoJogo* e) {
         atual = proximo;
     }
     e->listaDeBlocos = NULL;
+    e->blocosAtivos = 0;
 }
+
+void respawnarBlocoAleatorio(EstadoJogo* e) {
+    int larguraBloco = 60;
+    int alturaBloco = 20;
+    int espacoHorizontal = 20;
+    int espacoVertical = 10;
+    int offsetHorizontal = (e->telaLargura - (BLOCO_COLUNAS * (larguraBloco + espacoHorizontal)) + espacoHorizontal) / 2;
+    int offsetVertical = 50;
+
+    Color corHP3 = (Color){ 140, 140, 140, 255 };
+    Color corHP2 = (Color){  30,  30, 180, 255 };
+    Color corHP1 = (Color){ 190, 160, 220, 255 };
+
+    int tentativas = 0;
+    while (tentativas < 50) { 
+        int i = rand() % BLOCO_LINHAS;
+        int j = rand() % BLOCO_COLUNAS;
+
+        float newX = offsetHorizontal + j * (larguraBloco + espacoHorizontal);
+        float newY = offsetVertical + i * (alturaBloco + espacoVertical);
+        
+        bool slotOcupado = false;
+        Bloco *blocoAtual = e->listaDeBlocos;
+        while (blocoAtual != NULL) {
+            if (blocoAtual->rect.x == newX && blocoAtual->rect.y == newY) {
+                slotOcupado = true;
+                break;
+            }
+            blocoAtual = blocoAtual->proximo;
+        }
+
+        if (!slotOcupado) {
+            Bloco *novoBloco = (Bloco*)malloc(sizeof(Bloco));
+            if (novoBloco == NULL) return; 
+
+            novoBloco->rect.x = newX;
+            novoBloco->rect.y = newY;
+            novoBloco->rect.width = larguraBloco;
+            novoBloco->rect.height = alturaBloco;
+            novoBloco->ativo = true;
+            
+            if (i < 2) { novoBloco->hp = 3; novoBloco->cor = corHP3; }
+            else if (i < 4) { novoBloco->hp = 2; novoBloco->cor = corHP2; }
+            else { novoBloco->hp = 1; novoBloco->cor = corHP1; }
+            
+            novoBloco->proximo = e->listaDeBlocos;
+            e->listaDeBlocos = novoBloco;
+            
+            e->blocosAtivos++;
+            return; 
+        }
+        tentativas++;
+    }
+}
+
 
 void carregarNivel(EstadoJogo* e, int nivel) {
     limparBlocos(e);
@@ -36,13 +92,9 @@ void carregarNivel(EstadoJogo* e, int nivel) {
     int offsetHorizontal = (e->telaLargura - (BLOCO_COLUNAS * (larguraBloco + espacoHorizontal)) + espacoHorizontal) / 2;
     int offsetVertical = 50;
     
-Color cores[BLOCO_LINHAS] = {
-    (Color){ 100, 100, 100, 255 },
-    (Color){ 120, 120, 120, 255 },
-    (Color){  80,  80, 160, 255 },
-    (Color){  60,  60, 180, 255 },
-    (Color){ 100,  60, 180, 255 }
-};
+    Color corHP3 = (Color){ 140, 140, 140, 255 };
+    Color corHP2 = (Color){  30,  30, 180, 255 };
+    Color corHP1 = (Color){ 190, 160, 220, 255 };
 
     for (int i = 0; i < BLOCO_LINHAS; i++) {
         for (int j = 0; j < BLOCO_COLUNAS; j++) {
@@ -55,10 +107,21 @@ Color cores[BLOCO_LINHAS] = {
                 novoBloco->rect.width = larguraBloco;
                 novoBloco->rect.height = alturaBloco;
                 novoBloco->ativo = true;
-                novoBloco->cor = cores[i];
+                
+                if (i < 2) {
+                    novoBloco->hp = 3;
+                    novoBloco->cor = corHP3;
+                } else if (i < 4) {
+                    novoBloco->hp = 2;
+                    novoBloco->cor = corHP2;
+                } else {
+                    novoBloco->hp = 1;
+                    novoBloco->cor = corHP1;
+                }
                 
                 novoBloco->proximo = e->listaDeBlocos;
                 e->listaDeBlocos = novoBloco;
+                e->blocosAtivos++;
             }
         }
     }
@@ -69,6 +132,7 @@ void initGame(EstadoJogo* e) {
     e->pontuacao = 0;
     e->vidas = 3;
     e->nivel = 1;
+    
     e->jogador.pos.x = e->telaLargura / 2 - (e->jogador.largura / 2);
     e->jogador.pos.y = e->telaAltura - 60;
     e->bola.pos.x = e->telaLargura / 2;
@@ -84,6 +148,10 @@ void initGame(EstadoJogo* e) {
     e->mostrarDicaControle = true;
     e->timerDicaControle = 3.0f;
     e->cursorPause = 0;
+    
+    e->timerAceleracao = 5.0f;
+    e->timerRespawn = 0.2f;
+    e->blocosParaRespawnar = 0;
     
     carregarNivel(e, 1);
 }
@@ -102,6 +170,11 @@ EstadoJogo* criarEstadoInicial(int largura, int altura) {
     e->cursorMenu = 0;
     e->listaDeBlocos = NULL;
     
+    e->blocosAtivos = 0;
+    e->blocosParaRespawnar = 0;
+    e->timerAceleracao = 0.0f;
+    e->timerRespawn = 0.0f;
+
     e->telaAtual = TELA_MENU_PRINCIPAL;
     e->numPerfis = 0;
     e->perfilSelecionado = -1;
@@ -171,7 +244,7 @@ void atualizarJogador(EstadoJogo* e) {
             if (e->cursorPause > 1) e->cursorPause = 0;
         }
         if (IsKeyPressed(KEY_W) || IsKeyPressed(KEY_UP)) {
-            e->cursorPause--;
+            e->cursorMenu--;
             if (e->cursorPause < 0) e->cursorPause = 1;
         }
         if (IsKeyPressed(KEY_ENTER)) {
@@ -219,7 +292,7 @@ void atualizarJogador(EstadoJogo* e) {
         }
 
         int tecla = GetCharPressed();
-        while (tecla > 0){
+        while (tecla > 0) {
             if (((tecla >= 'A' && tecla <= 'Z') || (tecla >= 'a' && tecla <= 'z')) && (e->registroCursor < 3)) {
                 if (tecla >= 'a' && tecla <= 'z') tecla = tecla - 32; 
                 e->registroIniciais[e->registroCursor] = (char)tecla;
@@ -272,6 +345,7 @@ void atualizarJogador(EstadoJogo* e) {
         }
     }
 }
+
 void atualizarBola(EstadoJogo* e) {
     e->bola.pos.x += e->bola.vel.dx;
     e->bola.pos.y += e->bola.vel.dy;
@@ -280,11 +354,11 @@ void atualizarBola(EstadoJogo* e) {
         e->bola.pos.y = 10;
         e->bola.vel.dy *= -1;
     }
-    if (e->bola.pos.x <= 10){
+    if (e->bola.pos.x <= 10) {
         e->bola.pos.x = 10;
         e->bola.vel.dx *= -1;
     }
-    if(e->bola.pos.x >= e->telaLargura - 10) {
+    if (e->bola.pos.x >= e->telaLargura - 10) {
         e->bola.pos.x = e->telaLargura - 10;
         e->bola.vel.dx *= -1;
     }
@@ -292,15 +366,16 @@ void atualizarBola(EstadoJogo* e) {
     if (e->bola.pos.y >= e->telaAltura) {
         e->vidas--;
         
-    if(e->vidas <= 0) {
-        if(e->perfilSelecionado != -1) {
-            if (e->pontuacao > e->perfis[e->perfilSelecionado].recorde) {
-                e->perfis[e->perfilSelecionado].recorde = e->pontuacao;
-                salvarTopScores(e);
-                }}
+        if (e->vidas <= 0) {
+            if (e->perfilSelecionado != -1) {
+                if (e->pontuacao > e->perfis[e->perfilSelecionado].recorde) {
+                    e->perfis[e->perfilSelecionado].recorde = e->pontuacao;
+                    salvarTopScores(e);
+                }
+            }
             e->telaAtual = TELA_MENU_PRINCIPAL;
-            initGame(e);}
-        else{
+            initGame(e);
+        } else {
             e->jogador.pos.x = e->telaLargura / 2 - (e->jogador.largura / 2);
             e->jogador.pos.y = e->telaAltura - 60;
             e->bola.pos.x = e->telaLargura / 2;
@@ -312,6 +387,30 @@ void atualizarBola(EstadoJogo* e) {
                 e->bola.vel.dx = 4;
             }
             e->bola.vel.dy = -4;
+        }
+    }
+
+    e->timerAceleracao -= GetFrameTime();
+    if (e->timerAceleracao <= 0.0f) {
+        e->bola.vel.dx *= 1.05f; 
+        e->bola.vel.dy *= 1.05f;
+        e->timerAceleracao = 5.0f;
+    }
+
+    int totalBlocos = BLOCO_LINHAS * BLOCO_COLUNAS;
+    int limiteRespawn = totalBlocos * 0.30f; 
+
+    if (e->blocosAtivos <= limiteRespawn && e->blocosParaRespawnar == 0) {
+        e->blocosParaRespawnar = totalBlocos * 0.25f;
+        e->timerRespawn = 0.2f;
+    }
+
+    if (e->blocosParaRespawnar > 0) {
+        e->timerRespawn -= GetFrameTime();
+        if (e->timerRespawn <= 0.0f) {
+            respawnarBlocoAleatorio(e);
+            e->blocosParaRespawnar--;
+            e->timerRespawn = 0.2f;
         }
     }
 }
@@ -338,22 +437,35 @@ void verificarColisoes(EstadoJogo* e) {
             if (CheckCollisionCircleRec(bolaCentro, bolaRaio, blocoAtual->rect)) {
                 e->bola.vel.dy *= -1;
                 e->pontuacao += 10;
+                blocoAtual->hp--;
                 
-                if (blocoAnterior == NULL) {
-                    e->listaDeBlocos = proximoBloco;
-                } else {
-                    blocoAnterior->proximo = proximoBloco;
+                if (blocoAtual->hp == 2) {
+                    blocoAtual->cor = (Color){  30,  30, 180, 255 }; 
+                } else if (blocoAtual->hp == 1) {
+                    blocoAtual->cor = (Color){ 190, 160, 220, 255 };
+                }
+
+                if (blocoAtual->hp <= 0) {
+                    if (blocoAnterior == NULL) {
+                        e->listaDeBlocos = proximoBloco;
+                    } else {
+                        blocoAnterior->proximo = proximoBloco;
+                    }
+                    
+                    free(blocoAtual);
+                    blocoAtual = NULL;
+                    e->blocosAtivos--;
                 }
                 
-                free(blocoAtual);
-                blocoAtual = NULL; 
                 return; 
-            }}
+            }
+        }
         
         if (blocoAtual != NULL) {
             blocoAnterior = blocoAtual;
-            blocoAtual = proximoBloco;}
-}
+            blocoAtual = proximoBloco;
+        }
+    }
 }
 
 void desenharTelaJogo(EstadoJogo* e) {
@@ -386,6 +498,7 @@ void desenharTelaJogo(EstadoJogo* e) {
         DrawText(dicaControle, e->telaLargura / 2 - dicaWidth / 2, e->telaAltura / 2, 20, GRAY);
     }
 }
+
 void desenharTudo(EstadoJogo* e, Texture2D logo) { 
     const char* escText = "Pressione ESC para fechar";
     int escTextWidth = MeasureText(escText, 20);
@@ -465,9 +578,11 @@ void desenharTudo(EstadoJogo* e, Texture2D logo) {
             sprintf(textoPerfil, "%s %s (Recorde: %d)", (e->cursorMenu == i) ? ">" : " ", e->perfis[i].iniciais, e->perfis[i].recorde);
             DrawText(textoPerfil, x_meio - MeasureText(textoPerfil, 25)/2, y_meio - 30 + (i*35), 25, cor);
         }
+        
         DrawText("Pressione ENTER para selecionar", x_meio - MeasureText("Pressione ENTER para selecionar", 20)/2, y_meio + (numOpcoes * 35) + 30, 20, GRAY);
         DrawText("Pressione Q para voltar", x_meio - MeasureText("Pressione Q para voltar", 20)/2, y_meio + (numOpcoes * 35) + 60, 20, GRAY);
-}}
+    }
+}
 
 void carregarTopScores(EstadoJogo* e) {
     FILE *f = fopen(SCORE_FILE, "rb");
@@ -483,7 +598,8 @@ void carregarTopScores(EstadoJogo* e) {
             e->numPerfis = MAX_PERFIS;
         }
         fread(e->perfis, sizeof(Perfil), e->numPerfis, f);
-    }  
+    }
+    
     fclose(f);
 }
 

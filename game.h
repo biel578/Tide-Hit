@@ -47,6 +47,7 @@ typedef struct Bloco {
     Rectangle rect;
     bool ativo;
     Color cor;
+    int hp;
     struct Bloco *proximo;
 } Bloco;
 
@@ -63,6 +64,12 @@ typedef struct EstadoJogo {
     Jogador jogador;
     Bola bola;
     Bloco *listaDeBlocos;
+    
+    int blocosAtivos;
+    int blocosParaRespawnar;
+    float timerAceleracao;
+    float timerRespawn;
+
     Perfil perfis[MAX_PERFIS];
     int numPerfis;
     int perfilSelecionado;
@@ -74,23 +81,15 @@ typedef struct EstadoJogo {
 } EstadoJogo;
 
 EstadoJogo* criarEstadoInicial(int largura, int altura);
-
 void liberarEstado(EstadoJogo* estado);
-
 void atualizarJogador(EstadoJogo* estado); 
-
 void atualizarBola(EstadoJogo* estado);
-
 void verificarColisoes(EstadoJogo* estado);
-
 void desenharTudo(EstadoJogo* estado, Texture2D logo); 
-
 void carregarNivel(EstadoJogo* estado, int nivel);
-
 void carregarTopScores(EstadoJogo* estado);
-
 void salvarTopScores(EstadoJogo* estado);
-
 void initGame(EstadoJogo* e);
+void respawnarBlocoAleatorio(EstadoJogo* e);
 
 #endif
