@@ -8,6 +8,18 @@
 
 void desenharTelaJogo(EstadoJogo* e);
 
+void ordenarPerfis(EstadoJogo* e) {
+    for (int i = 0; i < e->numPerfis - 1; i++) {
+        for (int j = 0; j < e->numPerfis - i - 1; j++) {
+            if (e->perfis[j].recorde < e->perfis[j + 1].recorde) {
+                Perfil temp = e->perfis[j];
+                e->perfis[j] = e->perfis[j + 1];
+                e->perfis[j + 1] = temp;
+            }
+        }
+    }
+}
+
 void limparBlocos(EstadoJogo* e) {
     Bloco *atual = e->listaDeBlocos;
     while (atual != NULL) {
@@ -72,7 +84,6 @@ void respawnarBlocoAleatorio(EstadoJogo* e) {
         tentativas++;
     }
 }
-
 
 void carregarNivel(EstadoJogo* e, int nivel) {
     limparBlocos(e);
@@ -149,7 +160,7 @@ void initGame(EstadoJogo* e) {
     e->timerDicaControle = 3.0f;
     e->cursorPause = 0;
     
-    e->timerAceleracao = 5.0f;
+    e->timerAceleracao = 60.0f;
     e->timerRespawn = 0.2f;
     e->blocosParaRespawnar = 0;
     
@@ -370,6 +381,7 @@ void atualizarBola(EstadoJogo* e) {
             if (e->perfilSelecionado != -1) {
                 if (e->pontuacao > e->perfis[e->perfilSelecionado].recorde) {
                     e->perfis[e->perfilSelecionado].recorde = e->pontuacao;
+                    ordenarPerfis(e);
                     salvarTopScores(e);
                 }
             }
@@ -387,14 +399,22 @@ void atualizarBola(EstadoJogo* e) {
                 e->bola.vel.dx = 4;
             }
             e->bola.vel.dy = -4;
+            
+            if (e->vidas == 1) e->timerAceleracao = 40.0f;
+            else e->timerAceleracao = 60.0f;
         }
     }
 
     e->timerAceleracao -= GetFrameTime();
     if (e->timerAceleracao <= 0.0f) {
-        e->bola.vel.dx *= 1.05f; 
-        e->bola.vel.dy *= 1.05f;
-        e->timerAceleracao = 5.0f;
+        if (e->bola.vel.dx > 0) e->bola.vel.dx += 1;
+        else e->bola.vel.dx -= 1;
+
+        if (e->bola.vel.dy > 0) e->bola.vel.dy += 1;
+        else e->bola.vel.dy -= 1;
+
+        if (e->vidas == 1) e->timerAceleracao = 40.0f;
+        else e->timerAceleracao = 60.0f;
     }
 
     int totalBlocos = BLOCO_LINHAS * BLOCO_COLUNAS;
@@ -537,11 +557,15 @@ void desenharTudo(EstadoJogo* e, Texture2D logo) {
         int y_meio = e->telaAltura / 2;
         DrawText("TOP SCORES", x_meio - MeasureText("TOP SCORES", 40)/2, y_meio - 100, 40, YELLOW);
         char textoPerfil[32];
-        for (int i = 0; i < e->numPerfis; i++) {
+        
+        int limite = e->numPerfis;
+        if (limite > 8) limite = 8;
+
+        for (int i = 0; i < limite; i++) {
             sprintf(textoPerfil, "%d. %s   %d", i + 1, e->perfis[i].iniciais, e->perfis[i].recorde);
             DrawText(textoPerfil, x_meio - MeasureText(textoPerfil, 20)/2, y_meio - 30 + (i*30), 20, WHITE);
         }
-        DrawText("Pressione Q para voltar", x_meio - MeasureText("Pressione Q para voltar", 20)/2, y_meio + 100, 20, GRAY);
+        DrawText("Pressione Q para voltar", x_meio - MeasureText("Pressione Q para voltar", 20)/2, e->telaAltura - 80, 20, GRAY);
     }
     else if (e->telaAtual == TELA_PERGUNTA_PERFIL) {
         int x_meio = e->telaLargura / 2;
@@ -601,6 +625,7 @@ void carregarTopScores(EstadoJogo* e) {
     }
     
     fclose(f);
+    ordenarPerfis(e);
 }
 
 void salvarTopScores(EstadoJogo* e) {
